@@ -1,80 +1,48 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.IO;
-using iTextSharp.text;
-using iTextSharp.text.pdf;
 
 class Program
 {
     static void Main()
     {
-        // Crear conjunto de ciudadanos
+        // Generar ciudadanos ficticios
         HashSet<string> ciudadanos = new HashSet<string>();
         for (int i = 1; i <= 500; i++)
         {
-            ciudadanos.Add("Ciudadano " + i);
+            ciudadanos.Add($"Ciudadano {i}");
         }
-
-        // Crear conjunto de vacunados con Pfizer
-        HashSet<string> vacunadosPfizer = new HashSet<string>();
-        AgregarVacunados(vacunadosPfizer, ciudadanos, 75);
-
-        // Crear conjunto de vacunados con AstraZeneca
-        HashSet<string> vacunadosAstraZeneca = new HashSet<string>();
-        AgregarVacunados(vacunadosAstraZeneca, ciudadanos, 75);
-
-        // Operaciones de conjuntos
-        HashSet<string> noVacunados = new HashSet<string>(ciudadanos);
-        noVacunados.ExceptWith(vacunadosPfizer);
-        noVacunados.ExceptWith(vacunadosAstraZeneca);
-
-        HashSet<string> conDosDosis = new HashSet<string>(vacunadosPfizer);
-        conDosDosis.IntersectWith(vacunadosAstraZeneca);
-
-        HashSet<string> soloPfizer = new HashSet<string>(vacunadosPfizer);
-        soloPfizer.ExceptWith(vacunadosAstraZeneca);
-
-        HashSet<string> soloAstraZeneca = new HashSet<string>(vacunadosAstraZeneca);
-        soloAstraZeneca.ExceptWith(vacunadosPfizer);
-
-        // Generar reporte PDF
-        GenerarPDF(noVacunados, conDosDosis, soloPfizer, soloAstraZeneca);
-
-        Console.WriteLine("Reporte generado: reporte_vacunacion.pdf");
+        
+        // Generar vacunados con Pfizer
+        HashSet<string> vacunadosPfizer = new HashSet<string>(ciudadanos.OrderBy(x => Guid.NewGuid()).Take(75));
+        
+        // Generar vacunados con Astrazeneca
+        HashSet<string> vacunadosAstrazeneca = new HashSet<string>(ciudadanos.Except(vacunadosPfizer).OrderBy(x => Guid.NewGuid()).Take(75));
+        
+        // Generar vacunados con ambas vacunas
+        HashSet<string> vacunadosAmbas = new HashSet<string>(vacunadosPfizer.Intersect(vacunadosAstrazeneca));
+        
+        // Ciudadanos no vacunados
+        HashSet<string> noVacunados = new HashSet<string>(ciudadanos.Except(vacunadosPfizer).Except(vacunadosAstrazeneca));
+        
+        // Ciudadanos con solo Pfizer
+        HashSet<string> soloPfizer = new HashSet<string>(vacunadosPfizer.Except(vacunadosAmbas));
+        
+        // Ciudadanos con solo Astrazeneca
+        HashSet<string> soloAstrazeneca = new HashSet<string>(vacunadosAstrazeneca.Except(vacunadosAmbas));
+        
+        // Guardar resultados en archivos
+        GuardarEnArchivo("NoVacunados.txt", noVacunados);
+        GuardarEnArchivo("VacunadosAmbas.txt", vacunadosAmbas);
+        GuardarEnArchivo("SoloPfizer.txt", soloPfizer);
+        GuardarEnArchivo("SoloAstrazeneca.txt", soloAstrazeneca);
+        
+        Console.WriteLine("Listados generados exitosamente en archivos de texto.");
     }
 
-    static void AgregarVacunados(HashSet<string> conjunto, HashSet<string> ciudadanos, int cantidad)
+    static void GuardarEnArchivo(string fileName, HashSet<string> datos)
     {
-        Random rand = new Random();
-        List<string> listaCiudadanos = new List<string>(ciudadanos);
-        while (conjunto.Count < cantidad)
-        {
-            conjunto.Add(listaCiudadanos[rand.Next(listaCiudadanos.Count)]);
-        }
-    }
-
-    static void GenerarPDF(HashSet<string> noVacunados, HashSet<string> conDosDosis, HashSet<string> soloPfizer, HashSet<string> soloAstraZeneca)
-    {
-        Document doc = new Document();
-        PdfWriter.GetInstance(doc, new FileStream("reporte_vacunacion.pdf", FileMode.Create));
-        doc.Open();
-        doc.Add(new Paragraph("Reporte de Vacunación COVID-19\n\n"));
-
-        AgregarListaAlPDF(doc, "Ciudadanos no vacunados", noVacunados);
-        AgregarListaAlPDF(doc, "Ciudadanos con dos dosis", conDosDosis);
-        AgregarListaAlPDF(doc, "Ciudadanos con solo vacuna Pfizer", soloPfizer);
-        AgregarListaAlPDF(doc, "Ciudadanos con solo vacuna AstraZeneca", soloAstraZeneca);
-
-        doc.Close();
-    }
-
-    static void AgregarListaAlPDF(Document doc, string titulo, HashSet<string> lista)
-    {
-        doc.Add(new Paragraph($"{titulo} ({lista.Count}):\n"));
-        foreach (string ciudadano in lista)
-        {
-            doc.Add(new Paragraph(ciudadano));
-        }
-        doc.Add(new Paragraph("\n"));
+        File.WriteAllLines(fileName, datos);
     }
 }
